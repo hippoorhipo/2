@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Balloon Pop Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 390px;
+            height: 800px;
+            background-color: #87CEEB;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        #balloon {
+            width: 100px;
+            height: 120px;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            transition: all 0.1s ease;
+            position: absolute;
+            bottom: 20%;
+        }
+        #balloon::before {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            background-color: inherit;
+            bottom: -15px;
+            border-radius: 40%;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            font-size: 24px;
+            color: white;
+        }
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            border-radius: 20px;
+        }
+        #high-scores {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #restart-message {
+            margin-top: 20px;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Clicks: 0</div>
+        <div id="balloon">0</div>
+        <div id="game-over">
+            <p>Game Over</p>
+            <p>Your Score: <span id="final-score"></span></p>
+            <div id="high-scores"></div>
+            <div id="restart-message">Tap the screen or press any key to restart</div>
+        </div>
+    </div>
+
+    <script>
+        const balloon = document.getElementById('balloon');
+        const scoreDisplay = document.getElementById('score');
+        const gameOver = document.getElementById('game-over');
+        const finalScore = document.getElementById('final-score');
+        const highScores = document.getElementById('high-scores');
+        const restartMessage = document.getElementById('restart-message');
+
+        let size = 100;
+        let clicks = 0;
+        let popProbability = 0.02;
+        let canRestart = true;
+
+        const RED_COLOR = '#FF0000';
+        const PINK_COLOR = '#FFC0CB';
+
+        let scores = [];
+
+        function updateBalloon() {
+            balloon.style.width = `${size}px`;
+            balloon.style.height = `${size * 1.2}px`;
+            balloon.textContent = clicks;
+            balloon.style.backgroundColor = Math.random() < 0.001 ? PINK_COLOR : RED_COLOR;
+        }
+
+        function inflateBalloon() {
+            clicks++;
+            size += 1.25;
+            updateBalloon();
+            scoreDisplay.textContent = `Clicks: ${clicks}`;
+
+            if (Math.random() < popProbability) {
+                endGame();
+            }
+        }
+
+        function updateHighScores() {
+            scores.push(clicks);
+            scores.sort((a, b) => b - a);
+            scores = scores.slice(0, 3);
+
+            highScores.innerHTML = '<h3>High Scores</h3>' +
+                scores.map((score, index) => `<p>${index + 1}. ${score}</p>`).join('');
+        }
+
+        function endGame() {
+            gameOver.style.display = 'flex';
+            finalScore.textContent = clicks;
+            updateHighScores();
+            canRestart = false;
+            setTimeout(() => {
+                canRestart = true;
+                restartMessage.style.opacity = '1';
+            }, 2000); // Changed to 2 seconds
+        }
+
+        function resetGame() {
+            if (!canRestart) return;
+            size = 100;
+            clicks = 0;
+            popProbability = 0.02;
+            updateBalloon();
+            scoreDisplay.textContent = 'Clicks: 0';
+            gameOver.style.display = 'none';
+            restartMessage.style.opacity = '0';
+        }
+
+        document.addEventListener('click', function(event) {
+            if (gameOver.style.display === 'flex') {
+                resetGame();
+            } else {
+                inflateBalloon();
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                if (gameOver.style.display === 'flex') {
+                    resetGame();
+                } else {
+                    inflateBalloon();
+                }
+            }
+        });
+
+        resetGame();
+    </script>
+</body>
+</html>
