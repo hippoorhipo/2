@@ -76,6 +76,11 @@
             margin-top: 20px;
             text-align: center;
         }
+        #mystery-reward {
+            margin-top: 20px;
+            font-size: 20px;
+            color: gold;
+        }
         #restart-message {
             margin-top: 20px;
             font-size: 18px;
@@ -100,6 +105,7 @@
             <p>Game Over</p>
             <p>Your Score: <span id="final-score"></span></p>
             <div id="high-scores"></div>
+            <div id="mystery-reward">Mystery Reward: <span id="reward-text">????</span></div>
             <div id="restart-message">Tap the screen or press any key to restart</div>
         </div>
     </div>
@@ -110,6 +116,8 @@
         const gameOver = document.getElementById('game-over');
         const finalScore = document.getElementById('final-score');
         const highScores = document.getElementById('high-scores');
+        const mysteryReward = document.getElementById('mystery-reward');
+        const rewardText = document.getElementById('reward-text');
         const restartMessage = document.getElementById('restart-message');
         const gameContainer = document.getElementById('game-container');
 
@@ -117,6 +125,8 @@
         let clicks = 0;
         let popProbability = 0.02;
         let canRestart = true;
+        let canPlayPumpSound = true;
+        let hasPinkBalloonAppeared = false;
 
         const RED_COLOR = '#FF0000';
         const PINK_COLOR = '#FFC0CB';
@@ -124,10 +134,11 @@
         let scores = [];
         let isPinkBalloon = false;
 
-        // Web Audio API context
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
         function playPumpSound() {
+            if (!canPlayPumpSound) return;
+
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
             
@@ -153,7 +164,7 @@
             oscillator.frequency.setValueAtTime(550, audioContext.currentTime);
             oscillator.frequency.exponentialRampToValueAtTime(40, audioContext.currentTime + 0.2);
             
-            gainNode.gain.setValueAtTime(3, audioContext.currentTime); // 增加音量
+            gainNode.gain.setValueAtTime(3, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
             
             oscillator.connect(gainNode);
@@ -168,9 +179,14 @@
             balloon.style.height = `${size * 1.2}px`;
             balloon.textContent = clicks;
             balloon.style.backgroundColor = isPinkBalloon ? PINK_COLOR : RED_COLOR;
+            if (isPinkBalloon) {
+                hasPinkBalloonAppeared = true;
+            }
         }
 
         function inflateBalloon() {
+            if (!canPlayPumpSound) return;
+
             clicks++;
             size += 1.25;
             updateBalloon();
@@ -189,6 +205,16 @@
 
             highScores.innerHTML = '<h3>High Scores</h3>' +
                 scores.map((score, index) => `<p>${index + 1}. ${score}</p>`).join('');
+        }
+
+        function updateMysteryReward() {
+            if (hasPinkBalloonAppeared) {
+                rewardText.textContent = 'Pink Balloon';
+                rewardText.style.color = PINK_COLOR;
+            } else {
+                rewardText.textContent = '????';
+                rewardText.style.color = 'gold';
+            }
         }
 
         function createShape(type) {
@@ -268,6 +294,7 @@
         }
 
         function endGame() {
+            canPlayPumpSound = false;
             playPopSound();
             createParticles();
             balloon.style.display = 'none';
@@ -275,6 +302,7 @@
                 gameOver.style.display = 'flex';
                 finalScore.textContent = clicks;
                 updateHighScores();
+                updateMysteryReward();
                 canRestart = false;
                 setTimeout(() => {
                     canRestart = true;
@@ -291,9 +319,10 @@
             isPinkBalloon = Math.random() < 0.001;
             balloon.style.display = 'flex';
             updateBalloon();
-            scoreDisplay.textContent = 'Clicks: 0';
+            scoreDisplay.textContent = `Clicks: 0`;
             gameOver.style.display = 'none';
             restartMessage.style.opacity = '0';
+            canPlayPumpSound = true;
         }
 
         document.addEventListener('click', function(event) {
