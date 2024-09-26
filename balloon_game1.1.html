@@ -38,9 +38,9 @@
             align-items: center;
             font-size: 24px;
             color: white;
-            transition: all 0.1s ease;
             position: absolute;
             bottom: 20%;
+            transition: all 0.1s ease;
         }
         #balloon::before {
             content: '';
@@ -82,6 +82,14 @@
             opacity: 0;
             transition: opacity 0.5s ease;
         }
+        .particle {
+            position: absolute;
+            pointer-events: none;
+        }
+        @keyframes explode-particle {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -103,6 +111,7 @@
         const finalScore = document.getElementById('final-score');
         const highScores = document.getElementById('high-scores');
         const restartMessage = document.getElementById('restart-message');
+        const gameContainer = document.getElementById('game-container');
 
         let size = 100;
         let clicks = 0;
@@ -113,12 +122,52 @@
         const PINK_COLOR = '#FFC0CB';
 
         let scores = [];
+        let isPinkBalloon = false;
+
+        // Web Audio API context
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playPumpSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        function playPopSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(550, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(40, audioContext.currentTime + 0.2);
+            
+            gainNode.gain.setValueAtTime(3, audioContext.currentTime); // 增加音量
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
 
         function updateBalloon() {
             balloon.style.width = `${size}px`;
             balloon.style.height = `${size * 1.2}px`;
             balloon.textContent = clicks;
-            balloon.style.backgroundColor = Math.random() < 0.001 ? PINK_COLOR : RED_COLOR;
+            balloon.style.backgroundColor = isPinkBalloon ? PINK_COLOR : RED_COLOR;
         }
 
         function inflateBalloon() {
@@ -126,6 +175,7 @@
             size += 1.25;
             updateBalloon();
             scoreDisplay.textContent = `Clicks: ${clicks}`;
+            playPumpSound();
 
             if (Math.random() < popProbability) {
                 endGame();
@@ -141,15 +191,96 @@
                 scores.map((score, index) => `<p>${index + 1}. ${score}</p>`).join('');
         }
 
+        function createShape(type) {
+            const shape = document.createElement('div');
+            shape.className = 'particle';
+            const size = 5 + Math.random() * 15;
+
+            switch(type) {
+                case 'rectangle':
+                    shape.style.width = `${size * 2}px`;
+                    shape.style.height = `${size}px`;
+                    break;
+                case 'triangle':
+                    shape.style.width = `${size}px`;
+                    shape.style.height = `${size}px`;
+                    shape.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+                    break;
+                case 'trapezoid':
+                    shape.style.width = `${size * 2}px`;
+                    shape.style.height = `${size}px`;
+                    shape.style.clipPath = 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)';
+                    break;
+                case 'square':
+                    shape.style.width = `${size}px`;
+                    shape.style.height = `${size}px`;
+                    break;
+                case 'circle':
+                    shape.style.width = `${size}px`;
+                    shape.style.height = `${size}px`;
+                    shape.style.borderRadius = '50%';
+                    break;
+                case 'polygon':
+                    const sides = 5 + Math.floor(Math.random() * 3);
+                    const points = [];
+                    for (let i = 0; i < sides; i++) {
+                        const angle = (i / sides) * 2 * Math.PI;
+                        const x = 50 + 50 * Math.cos(angle);
+                        const y = 50 + 50 * Math.sin(angle);
+                        points.push(`${x}% ${y}%`);
+                    }
+                    shape.style.width = `${size}px`;
+                    shape.style.height = `${size}px`;
+                    shape.style.clipPath = `polygon(${points.join(', ')})`;
+                    break;
+            }
+            
+            return shape;
+        }
+
+        function createParticles() {
+            const particleCount = 50;
+            const centerX = gameContainer.offsetWidth / 2;
+            const centerY = gameContainer.offsetHeight * 0.65;
+            const shapes = ['rectangle', 'triangle', 'trapezoid', 'square', 'circle', 'polygon'];
+
+            for (let i = 0; i < particleCount; i++) {
+                const shape = shapes[Math.floor(Math.random() * shapes.length)];
+                const particle = createShape(shape);
+                particle.style.backgroundColor = balloon.style.backgroundColor;
+                particle.style.left = `${centerX}px`;
+                particle.style.top = `${centerY}px`;
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 3 + Math.random() * 7;
+                const tx = Math.cos(angle) * speed * 50;
+                const ty = Math.sin(angle) * speed * 50;
+                const rot = Math.random() * 720 - 360;
+
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                particle.style.setProperty('--rot', `${rot}deg`);
+                particle.style.animation = 'explode-particle 1s forwards';
+
+                gameContainer.appendChild(particle);
+                setTimeout(() => gameContainer.removeChild(particle), 1000);
+            }
+        }
+
         function endGame() {
-            gameOver.style.display = 'flex';
-            finalScore.textContent = clicks;
-            updateHighScores();
-            canRestart = false;
+            playPopSound();
+            createParticles();
+            balloon.style.display = 'none';
             setTimeout(() => {
-                canRestart = true;
-                restartMessage.style.opacity = '1';
-            }, 2000); // Changed to 2 seconds
+                gameOver.style.display = 'flex';
+                finalScore.textContent = clicks;
+                updateHighScores();
+                canRestart = false;
+                setTimeout(() => {
+                    canRestart = true;
+                    restartMessage.style.opacity = '1';
+                }, 1000);
+            }, 1000);
         }
 
         function resetGame() {
@@ -157,6 +288,8 @@
             size = 100;
             clicks = 0;
             popProbability = 0.02;
+            isPinkBalloon = Math.random() < 0.001;
+            balloon.style.display = 'flex';
             updateBalloon();
             scoreDisplay.textContent = 'Clicks: 0';
             gameOver.style.display = 'none';
